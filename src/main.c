@@ -1,6 +1,10 @@
 #include "driver/gpio.h"
 #include "driver/gptimer.h"
 #include "freertos/FreeRTOS.h"
+#include "driver/uart.h"
+
+// prototype
+void blink_test(void);
 
 static bool led = false;
 
@@ -12,8 +16,11 @@ static bool blink_callback(gptimer_handle_t timer, const gptimer_alarm_event_dat
     return false;
 }
 
-void app_main(void) 
-{
+void uart_test(void) {
+    
+}
+
+void blink_test(void) {
     /* configure gpio pin 12 as output */
     gpio_config_t config = {};
     config.intr_type = GPIO_INTR_DISABLE;
@@ -53,9 +60,12 @@ void app_main(void)
     ESP_ERROR_CHECK(gptimer_register_event_callbacks(blink_gptimer, &blink_callbacks, NULL));
     ESP_ERROR_CHECK(gptimer_enable(blink_gptimer));
     ESP_ERROR_CHECK(gptimer_start(blink_gptimer));
+}
 
-
+void app_main(void) 
+{
+    blink_test();
     for (;;) {
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        taskYIELD();
     }   
 }
