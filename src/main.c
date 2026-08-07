@@ -1,14 +1,13 @@
 #include "driver/gpio.h"
 #include "driver/gptimer.h"
 #include "freertos/FreeRTOS.h"
-#include "hal/gpio_types.h"
 
 static bool led = false;
 
 /* NOTE: this is an interrupt context */
 static bool blink_callback(gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *usr_ctx) {
     
-    gpio_set_level(GPIO_NUM_12, (led) ? GPIO_INTR_HIGH_LEVEL: GPIO_INTR_LOW_LEVEL);
+    gpio_set_level(GPIO_NUM_12, (led) ? 1: 0);
     led = !led;
     return false;
 }
@@ -21,10 +20,13 @@ void app_main(void)
     config.pin_bit_mask = 1ULL << GPIO_NUM_12;
     config.mode = GPIO_MODE_OUTPUT;
     config.pull_up_en = GPIO_PULLUP_ENABLE;
+    config.pull_down_en = GPIO_PULLDOWN_DISABLE;
 
     /* set gpio pin with config */
     ESP_ERROR_CHECK(gpio_config(&config));
-    
+    /* set 0 to start */
+    gpio_set_level(GPIO_NUM_12, 0);
+
     /* create handle and config*/
     gptimer_handle_t blink_gptimer;
     gptimer_config_t blink_timer_config = {
