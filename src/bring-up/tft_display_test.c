@@ -1,5 +1,4 @@
 #include "driver/gpio.h"
-#include "driver/gptimer.h"
 #include "freertos/FreeRTOS.h"
 #include "driver/uart.h"
 
@@ -35,21 +34,7 @@
 #define LCD_MAX_LINES 20 // arbitrary number
 #define LCD_MAX_TRANSFER LCD_MAX_LINES * LCD_H_RES * sizeof(uint16_t)
 
-#define UART_PORT 0
-#define UART_TX GPIO_NUM_43
-#define UART_RX GPIO_NUM_44
-
-// todo ?
-// #define SPI_PIN(x) GPIO_NUM_ x
-// SPI_PIN(MOSI);
-
-// todo
-// static hex_to_rgb(const char *hx, int rgb_bits) {
-//     assert(hx != NULL);
-//     if ()
-// }
-
-static const char *TAG = "main";
+static const char *TAG = "TFT display test";
 
 static esp_err_t scale_rgb(uint8_t src, uint8_t *dest, size_t size) {
     assert(dest != NULL);
@@ -90,67 +75,6 @@ static esp_err_t encode_rgb(uint8_t r, uint8_t g, uint8_t b, uint16_t *rgb) {
     *rgb |= b;
 
     return ESP_OK;
-}
-
-// prototype
-void blink_test(void);
-void tft_display_test(void);
-
-static bool led = false;
-/* NOTE: this is an interrupt context */
-static bool blink_callback(gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *usr_ctx) {
-    
-    gpio_set_level(GPIO_NUM_12, (led) ? 1: 0);
-    led = !led;
-    return false;
-}
-
-void blink_test(void) {
-    /* configure gpio pin 12 as output */
-    gpio_config_t config = {};
-    config.intr_type = GPIO_INTR_DISABLE;
-    config.pin_bit_mask = 1ULL << GPIO_NUM_12;
-    config.mode = GPIO_MODE_OUTPUT;
-    config.pull_up_en = GPIO_PULLUP_ENABLE;
-    config.pull_down_en = GPIO_PULLDOWN_DISABLE;
-
-    /* set gpio pin with config */
-    ESP_ERROR_CHECK(gpio_config(&config));
-    /* set 0 to start */
-    gpio_set_level(GPIO_NUM_12, 0);
-
-    /* create handle and config*/
-    gptimer_handle_t blink_gptimer;
-    gptimer_config_t blink_timer_config = {
-        .clk_src = GPTIMER_CLK_SRC_DEFAULT,
-        .direction = GPTIMER_COUNT_UP,
-        .resolution_hz = 1 * 1000 * 1000 // 1MHz
-    };
-    /* create the timer */
-    ESP_ERROR_CHECK(gptimer_new_timer(&blink_timer_config, &blink_gptimer));
-
-    /* configure alarm */
-    gptimer_alarm_config_t blink_alarm_config = {
-        .reload_count = 0,                  // set counter value to this when event occurs
-        .alarm_count = 1 * 1000 * 1000,              // period of the alarm
-        .flags.auto_reload_on_alarm = true  // periodic
-    };
-    // set action (bit amgbiguous naming)
-    ESP_ERROR_CHECK(gptimer_set_alarm_action(blink_gptimer, &blink_alarm_config));
-
-    gptimer_event_callbacks_t blink_callbacks = {
-        .on_alarm = blink_callback
-    };
-
-    ESP_ERROR_CHECK(gptimer_register_event_callbacks(blink_gptimer, &blink_callbacks, NULL));
-    ESP_ERROR_CHECK(gptimer_enable(blink_gptimer));
-    ESP_ERROR_CHECK(gptimer_start(blink_gptimer));
-
-
-    for (;;) {
-        taskYIELD();
-    }   
-
 }
 
 uint16_t frame_buffer[LCD_H_RES * LCD_V_RES];
@@ -241,76 +165,8 @@ void tft_display_test(void) {
 
 }
 
-void spi_test(void) {
-    ESP_LOGI(TAG, "Creating bus config...");
-    // create an SPI bus
-    spi_bus_config_t bus_cfg = {
-        .sclk_io_num = SCLK,
-        .mosi_io_num = MOSI,
-        .miso_io_num = -1,
-        .quadhd_io_num = -1,
-        .quadwp_io_num = -1,
-        .max_transfer_sz = LCD_MAX_TRANSFER
-    };
-    ESP_ERROR_CHECK(spi_bus_initialize(LCD_HOST, &bus_cfg, SPI_DMA_CH_AUTO));
-
-    ESP_LOGI(TAG, "Creating SPI handle...");
-    spi_device_handle_t spidev_handle = NULL;
-    spi_device_interface_config_t spidev_cfg = {
-        .clock_source = SPI_CLK_SRC_DEFAULT,
-        .clock_speed_hz = 20 * 1000 * 1000,
-        .mode = 0,
-        .spics_io_num = CS,
-        .queue_size = 1,
-        .address_bits = 32
-    };
-    ESP_ERROR_CHECK(spi_bus_add_device(LCD_HOST, &spidev_cfg, &spidev_handle));
-
-    ESP_LOGI(TAG, "Creating transaction...");
-    const char *test = "SPI CAN YOU HEAR ME??\r\n";
-    size_t len = strlen(test);
-    spi_transaction_t trans = {
-        .rx_buffer = NULL, // no MISO phase
-        .length = len,
-        .addr = (uint32_t) test,
-    };
-    ESP_LOGI(TAG, "Starting loop...");
-    for (;;) {
-        ESP_LOGI(TAG, "SPI transmitting...");
-        
-        spi_device_transmit(spidev_handle, &trans);
-        taskYIELD();
-    }
-}
-
-void uart_test(void) {
-    uart_config_t uart_cfg = {
-        .baud_rate = 115200,
-        .data_bits = UART_DATA_8_BITS,
-        .parity = UART_PARITY_DISABLE,
-        .stop_bits = UART_STOP_BITS_1,
-        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
-        .source_clk = UART_SCLK_DEFAULT
-    };
-    int intr_alloc_flags = 0;   // from echo example
-    ESP_ERROR_CHECK(uart_driver_install(UART_PORT, 1024, 0, 0, NULL, intr_alloc_flags));
-    ESP_ERROR_CHECK(uart_param_config(UART_PORT, &uart_cfg));
-    ESP_ERROR_CHECK(uart_set_pin(UART_PORT, UART_PIN_NO_CHANGE, UART_RX, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
-}
-
-
-bool test_idle_hook_cb(void) {
-    ESP_LOGI(TAG, "Idle task called");
-    return true;
-}
-
 void app_main(void) 
 {
-    esp_register_freertos_idle_hook_for_cpu(test_idle_hook_cb, 0);
-    // ESP_LOGI(TAG, "Initialising UART...");
-    // uart_test();
-    // ESP_LOGI(TAG, "Beginning display test...");
-    // tft_display_test();
-    ESP_LOGI(TAG, "Beginning SPI test...");
-    spi_test();
+    ESP_LOGI(TAG, "Beginning test...");
+    tft_display_test();
 }
