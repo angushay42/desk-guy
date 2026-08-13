@@ -13,12 +13,12 @@
 #include <math.h>
 
 // note: D = MOSI, Q = MISO
-#define MOSI    GPIO_NUM_16
-#define MISO    GPIO_NUM_18
-#define SCLK    GPIO_NUM_17
-#define CS      GPIO_NUM_15
-#define DC      GPIO_NUM_12 // Data/command 
-#define RST     GPIO_NUM_11
+#define MOSI    GPIO_NUM_13
+#define MISO    GPIO_NUM_11
+#define SCLK    GPIO_NUM_12
+#define CS      GPIO_NUM_10
+#define DC      GPIO_NUM_4 // Data/command 
+#define RST     GPIO_NUM_5
 
 #define LCD_HOST SPI2_HOST  // should be the fast SPI
 #define DOT_CLK_HZ 18 * 1000 * 1000  // I think it is 18MHz, unsure... 
@@ -140,7 +140,7 @@ void tft_display_test(void) {
 
     ESP_LOGI(TAG, "Encoding RGB...");
     uint16_t colour = 0;
-    ESP_ERROR_CHECK(encode_rgb(255U, 0U, 64U, &colour)); 
+    ESP_ERROR_CHECK(encode_rgb(255, 0U, 0, &colour)); 
     ESP_LOGD(TAG, "Colour is: %u", colour);
 
     ESP_LOGI(TAG, "Filling frame buffer...");
