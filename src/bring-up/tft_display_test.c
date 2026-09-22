@@ -62,6 +62,7 @@ static esp_err_t scale_rgb(uint8_t src, uint8_t *dest, size_t size) {
     return ESP_OK;
 }
 
+// todo expand this
 /* always returns a 5-6-5 rgb into a uint16_t */
 static esp_err_t encode_rgb(uint8_t r, uint8_t g, uint8_t b, uint16_t *rgb) {
     assert(rgb != NULL);
@@ -104,7 +105,7 @@ void tft_display_test(void) {
         .miso_io_num = -1,
         .quadhd_io_num = -1,
         .quadwp_io_num = -1,
-        .max_transfer_sz = LCD_MAX_TRANSFER
+        .max_transfer_sz = LCD_MAX_TRANSFER,
     };
     ESP_ERROR_CHECK(spi_bus_initialize(LCD_HOST, &bus_cfg, SPI_DMA_CH_AUTO));
 
@@ -133,28 +134,44 @@ void tft_display_test(void) {
     esp_lcd_panel_dev_config_t panel_cfg = {
         .reset_gpio_num = RST,
         .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_RGB,
-        .bits_per_pixel = LCD_RGB_BITS
+        .bits_per_pixel = LCD_RGB_BITS,
+        .data_endian = LCD_RGB_DATA_ENDIAN_LITTLE
     };
+
 
     ESP_ERROR_CHECK(esp_lcd_new_panel_st7789(io_handle, &panel_cfg, &panel_handle));
 
-    ESP_LOGI(TAG, "Encoding RGB...");
-    uint16_t colour = 0;
-    ESP_ERROR_CHECK(encode_rgb(255, 0U, 0, &colour)); 
-    ESP_LOGD(TAG, "Colour is: %u", colour);
+    // ESP_LOGI(TAG, "Encoding RGB...");
+    // uint16_t colour = 0;
+    // ESP_ERROR_CHECK(encode_rgb(0, 0, 0, &colour)); 
+    // ESP_LOGD(TAG, "Colour is: %u", colour);
 
-    ESP_LOGI(TAG, "Filling frame buffer...");
-    for (size_t row = 0; row < (size_t) LCD_H_RES; row++) {
-        for (size_t col = 0; col < (size_t) LCD_V_RES; col++) {
-            frame_buffer[row * LCD_V_RES + col] = colour;
+    uint16_t test_colour;
+
+    ESP_ERROR_CHECK(encode_rgb(255,0,0, &test_colour));
+
+    ESP_LOGD(TAG, "Filling frame buffer...");
+    for (size_t row = 0; row < (size_t) LCD_V_RES; row++) {
+        for (size_t col = 0; col < (size_t) LCD_H_RES; col++) {
+            frame_buffer[row * LCD_H_RES + col] = test_colour;
         }
     }
 
     ESP_LOGI(TAG, "Starting panel up...");
     ESP_ERROR_CHECK(esp_lcd_panel_reset(panel_handle));
     ESP_ERROR_CHECK(esp_lcd_panel_init(panel_handle));
+    ESP_ERROR_CHECK(esp_lcd_panel_invert_color(panel_handle, true));
 
     ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(panel_handle, true));
+
+    // ESP_LOGD(TAG, 
+    //     "colour is: \t%u. \n
+    //     First half: \t%u, \n
+    //     Second half: \t%u \n", 
+    //     colour, 
+    //     *(uint8_t *) &colour,
+    //     *((uint8_t *) &colour + 1)
+    // );
 
     ESP_LOGI(TAG, "Beginning write sequence...");
     for (;;) {

@@ -298,7 +298,6 @@ void uart_test(void) {
     ESP_ERROR_CHECK(uart_set_pin(UART_PORT, UART_PIN_NO_CHANGE, UART_RX, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
 }
 
-
 bool test_idle_hook_cb(void) {
     ESP_LOGI(TAG, "Idle task called");
     return true;
