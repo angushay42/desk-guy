@@ -1,6 +1,7 @@
 [submodule "lib/RoboEyesTFT"]
 	path = lib/RoboEyesTFT
 	url = https://github.com/yousseftechdev/RoboEyesTFT.git
+
 [submodule "lib/TFT_eSPI"]
 	path = lib/TFT_eSPI
 	url = https://github.com/Bodmer/TFT_eSPI

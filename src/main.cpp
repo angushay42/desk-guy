@@ -1,3 +1,4 @@
+extern "C" {
 #include "driver/gpio.h"
 #include "driver/gptimer.h"
 #include "freertos/FreeRTOS.h"
@@ -12,6 +13,8 @@
 #include "esp_freertos_hooks.h"
 #include "esp_log.h"
 #include <math.h>
+}
+#include <ESP_TFT_RoboEyes.hpp>
 
 // note: D = MOSI, Q = MISO
 #define MOSI    GPIO_NUM_16
@@ -35,7 +38,7 @@
 #define LCD_MAX_LINES 20 // arbitrary number
 #define LCD_MAX_TRANSFER LCD_MAX_LINES * LCD_H_RES * sizeof(uint16_t)
 
-#define UART_PORT 0
+#define UART_PORT static_cast<uart_port_t>(0)
 #define UART_TX GPIO_NUM_43
 #define UART_RX GPIO_NUM_44
 
@@ -124,17 +127,18 @@ void blink_test(void) {
     gptimer_config_t blink_timer_config = {
         .clk_src = GPTIMER_CLK_SRC_DEFAULT,
         .direction = GPTIMER_COUNT_UP,
-        .resolution_hz = 1 * 1000 * 1000 // 1MHz
+        .resolution_hz = 1 * 1000 * 1000, // 1MHz
     };
     /* create the timer */
     ESP_ERROR_CHECK(gptimer_new_timer(&blink_timer_config, &blink_gptimer));
 
     /* configure alarm */
     gptimer_alarm_config_t blink_alarm_config = {
+        .alarm_count = 1 * 1000 * 1000,     // period of the alarm
         .reload_count = 0,                  // set counter value to this when event occurs
-        .alarm_count = 1 * 1000 * 1000,              // period of the alarm
-        .flags.auto_reload_on_alarm = true  // periodic
+        .flags = {0}
     };
+    blink_alarm_config.flags.auto_reload_on_alarm = true;
     // set action (bit amgbiguous naming)
     ESP_ERROR_CHECK(gptimer_set_alarm_action(blink_gptimer, &blink_alarm_config));
 
@@ -175,11 +179,11 @@ void tft_display_test(void) {
     ESP_LOGI(TAG, "Creating bus config...");
     // create an SPI bus
     spi_bus_config_t bus_cfg = {
-        .sclk_io_num = SCLK,
         .mosi_io_num = MOSI,
         .miso_io_num = -1,
-        .quadhd_io_num = -1,
+        .sclk_io_num = SCLK,
         .quadwp_io_num = -1,
+        .quadhd_io_num = -1,
         .max_transfer_sz = LCD_MAX_TRANSFER
     };
     ESP_ERROR_CHECK(spi_bus_initialize(LCD_HOST, &bus_cfg, SPI_DMA_CH_AUTO));
@@ -188,13 +192,13 @@ void tft_display_test(void) {
     // create handle 
     esp_lcd_panel_io_handle_t io_handle = NULL;
     esp_lcd_panel_io_spi_config_t io_cfg = {
-        .dc_gpio_num = DC,
         .cs_gpio_num = CS,
+        .dc_gpio_num = DC,
+        .spi_mode = 0,
         .pclk_hz = DOT_CLK_HZ,
+        .trans_queue_depth = 10, // todo test performance
         .lcd_cmd_bits = LCD_CMD_BITS,
         .lcd_param_bits = LCD_PARAM_BITS,
-        .spi_mode = 0,
-        .trans_queue_depth = 10 // todo test performance
     };
 
     ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi(
@@ -207,9 +211,9 @@ void tft_display_test(void) {
     // These are required by the ST7789 header file
     esp_lcd_panel_handle_t panel_handle = NULL;
     esp_lcd_panel_dev_config_t panel_cfg = {
-        .reset_gpio_num = RST,
         .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_RGB,
-        .bits_per_pixel = LCD_RGB_BITS
+        .bits_per_pixel = LCD_RGB_BITS,
+        .reset_gpio_num = RST,
     };
 
     ESP_ERROR_CHECK(esp_lcd_new_panel_st7789(io_handle, &panel_cfg, &panel_handle));
@@ -245,24 +249,24 @@ void spi_test(void) {
     ESP_LOGI(TAG, "Creating bus config...");
     // create an SPI bus
     spi_bus_config_t bus_cfg = {
-        .sclk_io_num = SCLK,
         .mosi_io_num = MOSI,
         .miso_io_num = -1,
-        .quadhd_io_num = -1,
+        .sclk_io_num = SCLK,
         .quadwp_io_num = -1,
-        .max_transfer_sz = LCD_MAX_TRANSFER
+        .quadhd_io_num = -1,
+        .max_transfer_sz = LCD_MAX_TRANSFER,
     };
     ESP_ERROR_CHECK(spi_bus_initialize(LCD_HOST, &bus_cfg, SPI_DMA_CH_AUTO));
 
     ESP_LOGI(TAG, "Creating SPI handle...");
     spi_device_handle_t spidev_handle = NULL;
     spi_device_interface_config_t spidev_cfg = {
+        .address_bits = 32,
+        .mode = 0,
         .clock_source = SPI_CLK_SRC_DEFAULT,
         .clock_speed_hz = 20 * 1000 * 1000,
-        .mode = 0,
         .spics_io_num = CS,
         .queue_size = 1,
-        .address_bits = 32
     };
     ESP_ERROR_CHECK(spi_bus_add_device(LCD_HOST, &spidev_cfg, &spidev_handle));
 
@@ -270,9 +274,9 @@ void spi_test(void) {
     const char *test = "SPI CAN YOU HEAR ME??\r\n";
     size_t len = strlen(test);
     spi_transaction_t trans = {
-        .rx_buffer = NULL, // no MISO phase
-        .length = len,
         .addr = (uint32_t) test,
+        .length = len,
+        .rx_buffer = NULL, // no MISO phase
     };
     ESP_LOGI(TAG, "Starting loop...");
     for (;;) {
@@ -303,7 +307,7 @@ bool test_idle_hook_cb(void) {
     return true;
 }
 
-void app_main(void) 
+extern "C" void app_main(void) 
 {
     esp_register_freertos_idle_hook_for_cpu(test_idle_hook_cb, 0);
     // ESP_LOGI(TAG, "Initialising UART...");
