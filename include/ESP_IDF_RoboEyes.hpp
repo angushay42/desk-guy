@@ -235,7 +235,7 @@ class ESP_TFT_RoboEyes {
     void begin(uint8_t frameRate = 50) 
     {
         // Allocate and create the sprite (off-screen buffer)
-        sprite = new Sprite(*disp);
+        sprite = new Sprite(disp);
         sprite->setColorDepth(8);
         sprite->createSprite(screenWidth, screenHeight);
         sprite->fillSprite(bgColor);

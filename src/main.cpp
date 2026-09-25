@@ -14,7 +14,7 @@ extern "C" {
 #include "esp_log.h"
 #include <math.h>
 }
-#include <ESP_TFT_RoboEyes.hpp>
+#include <ESP_IDF_RoboEyes.hpp>
 #include <Display.hpp>
 
 
@@ -28,7 +28,7 @@ bool test_idle_hook_cb(void) {
 extern "C" void app_main(void) 
 {
     esp_register_freertos_idle_hook_for_cpu(test_idle_hook_cb, 0);
-    static auto disp = Display(240, 340);
+    static auto disp = Display(240, 340, 16);
     static auto eyes = ESP_TFT_RoboEyes(disp, true, 0);  // portrait, rotations?
 
     disp.init();
