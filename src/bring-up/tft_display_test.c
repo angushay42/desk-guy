@@ -54,9 +54,9 @@ static esp_err_t scale_rgb(uint8_t src, uint8_t *dest, size_t size) {
     //     (const char *) uart_buf,
     //     len
     // );
-    ESP_LOGD(TAG, "Scaling colour: %i. Reading max=%f, target max=%f.", src, r_max, t_max);
+    // ESP_LOGD(TAG, "Scaling colour: %i. Reading max=%f, target max=%f.", src, r_max, t_max);
     temp = round(((double) src * r_max) / t_max);
-    ESP_LOGD(TAG, "Scaled src %u to %f", src, temp);
+    // ESP_LOGD(TAG, "Scaled src %u to %f", src, temp);
     *dest = (uint8_t) temp;
 
     return ESP_OK;
@@ -80,7 +80,7 @@ static esp_err_t encode_rgb(uint8_t r, uint8_t g, uint8_t b, uint16_t *rgb) {
 
 uint16_t frame_buffer[LCD_H_RES * LCD_V_RES];
 
-void tft_display_test_write(esp_lcd_panel_handle_t handle) {
+void tft_display_write_all(esp_lcd_panel_handle_t handle) {
     ESP_LOGD(TAG, "Writing to display...");
     for (size_t row = 0; row < (size_t) LCD_V_RES; row += LCD_MAX_LINES) 
     {
@@ -91,9 +91,33 @@ void tft_display_test_write(esp_lcd_panel_handle_t handle) {
             row,
             LCD_H_RES,
             row + LCD_MAX_LINES,
-            frame_buffer
+            frame_buffer + (row * LCD_H_RES)
         ));
     }
+}
+
+/* expects a 1D array data */
+esp_err_t tft_display_update_fb(
+    size_t x, 
+    size_t y,
+    size_t w,
+    size_t h,
+    const uint16_t *data
+) {
+    ESP_LOGD(TAG, "x, y, w, h: %u, %u, %u, %u\n\n", x, y, w, h);
+    if (x >= LCD_H_RES || y >= LCD_V_RES)
+        return ESP_ERR_INVALID_ARG;
+
+    if (x + w >= LCD_H_RES || y + h >= LCD_V_RES)
+        return ESP_ERR_INVALID_ARG;
+    
+
+    for (size_t row = y, idx = 0; row < y + h; row++) {
+        for (size_t col = x; col < x + w; col++, idx++) {
+            frame_buffer[row * LCD_H_RES + col] = data[idx];
+        }
+    }
+    return ESP_OK;
 }
 
 void tft_display_test(void) {
@@ -148,7 +172,7 @@ void tft_display_test(void) {
 
     uint16_t test_colour;
 
-    ESP_ERROR_CHECK(encode_rgb(255,0,0, &test_colour));
+    ESP_ERROR_CHECK(encode_rgb(0,0,0, &test_colour));
 
     ESP_LOGD(TAG, "Filling frame buffer...");
     for (size_t row = 0; row < (size_t) LCD_V_RES; row++) {
@@ -173,12 +197,41 @@ void tft_display_test(void) {
     //     *((uint8_t *) &colour + 1)
     // );
 
+    // set whole screen to black
+    ESP_LOGD(TAG, "Writing background black\n");
+    tft_display_update_fb(
+        0, 0, LCD_H_RES, LCD_V_RES, frame_buffer
+    );
+
+    ESP_LOGD(TAG, "Writing red box\n");
+    size_t red_w, red_h;
+    red_w = red_h = 40;
+    // draw red box in centre 
+    uint16_t *red_box = (uint16_t*) calloc(red_w * red_h, sizeof(uint16_t));
+    ESP_ERROR_CHECK(red_box == NULL);
+
+    for (size_t i = 0; i < red_h * red_w; i++)
+        encode_rgb(255, 0, 0, &red_box[i]);
+    
+    ESP_LOGD(TAG, "red_box values [0]: %u, [20]: %u, [50]: %u\n\n", red_box[0], red_box[20], red_box[50]);
+
+    ESP_ERROR_CHECK(tft_display_update_fb(
+        (LCD_H_RES / 2) - (red_w / 2),
+        (LCD_V_RES / 2) - (red_h / 2),
+        red_w,
+        red_h, 
+        red_box
+    ));
+
+    free(red_box);
+
+    
     ESP_LOGI(TAG, "Beginning write sequence...");
     for (;;) {
+        tft_display_write_all(panel_handle);
         
-        tft_display_test_write(panel_handle);
         taskYIELD();
-    }   
+    }
 
 }
 
