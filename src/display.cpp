@@ -1,30 +1,17 @@
 #include <Display.hpp>
 
-
-// note: D = MOSI, Q = MISO
-#define MOSI    GPIO_NUM_13
-#define MISO    GPIO_NUM_11
-#define SCLK    GPIO_NUM_12
-#define CS      GPIO_NUM_10
-#define DC      GPIO_NUM_4 // Data/command 
-#define RST     GPIO_NUM_5
-
-#define LCD_HOST SPI2_HOST  // should be the fast SPI
-#define DOT_CLK_HZ 18 * 1000 * 1000  // I think it is 18MHz, unsure... 
-#define LCD_CMD_BITS 8
-#define LCD_PARAM_BITS 8
-
-#define LCD_H_RES 240
-#define LCD_V_RES 320
-/** it doesn't say this anywhere I can find; 
- * but, if 18bit color is used then 3 bytes are required. 
- */
-#define LCD_RGB_BITS 16 // bits
-#define LCD_MAX_LINES 20 // arbitrary number
-#define LCD_MAX_TRANSFER LCD_MAX_LINES * LCD_H_RES * sizeof(uint16_t)
-
 static const char *TAG = "Display";
 
+static bool on_color_done(
+    esp_lcd_panel_io_handle_t io,
+    esp_lcd_panel_io_event_data_t *ev, 
+    void *ctx
+)
+{
+    BaseType_t woken = pdFALSE;
+    xSemaphoreGiveFromISR((SemaphoreHandle_t)ctx, &woken);
+    return woken == pdTRUE;
+}
 
 Display::Display(size_t w, size_t h, size_t bpp) : 
     m_spi_bus_config{0},
@@ -65,6 +52,7 @@ void Display::init()
 
     ESP_LOGI(TAG, "Creating panel handle...");
     
+    m_done_sem = xSemaphoreCreateBinary();
     m_io_cfg.dc_gpio_num = DC;
     m_io_cfg.cs_gpio_num = CS;
     m_io_cfg.pclk_hz = DOT_CLK_HZ;
@@ -72,6 +60,9 @@ void Display::init()
     m_io_cfg.lcd_param_bits = LCD_PARAM_BITS;
     m_io_cfg.spi_mode = 0;
     m_io_cfg.trans_queue_depth = 10; // todo test performance
+
+    m_io_cfg.on_color_trans_done = on_color_done;
+    m_io_cfg.user_ctx = (void *) m_done_sem;
 
     ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi(
         (esp_lcd_spi_bus_handle_t)LCD_HOST, 
@@ -134,6 +125,10 @@ void Display::pushImage(
         x + w, y + h,
         data
     ));
+
+    // wait until transfer is done
+    if (xSemaphoreTake(m_done_sem, pdMS_TO_TICKS(200)) != pdTRUE)
+        ESP_LOGE(TAG, "LCD transfer timed out");
 }
 
 
@@ -143,6 +138,7 @@ Sprite::Sprite(Display *disp) :
     m_img{nullptr},
     m_created{false}
 { }
+
 
 
 void Sprite::setColorDepth(uint8_t b)
@@ -178,9 +174,9 @@ void Sprite::deleteSprite()
     if (!m_created) 
         return;
 
+    free(m_img);
     m_created = false;
     m_img = nullptr;
-    free(m_img);
 }
 
 void Sprite::fillSprite(uint16_t color)
@@ -216,6 +212,9 @@ void Sprite::fillRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r
         return;
 
     fillRect(x, y+r, w, h - r - r, color);
+
+    fillRectCorner(x+r, y+h-r-1,    r, 1, w-r-r-1, color);
+    fillRectCorner(x+r, y+r,        r, 2, w-r-r-1, color);
 }
 
 void Sprite::drawFastHLine(int32_t x, int32_t y, int32_t w, uint32_t color)
@@ -340,4 +339,27 @@ void Sprite::fillTriangle(int32_t x0,int32_t y0, int32_t x1,int32_t y1, int32_t 
         drawFastHLine(a, y, b - a + 1, color);
     }
 
+}
+
+void scale_rgb(uint8_t &src, size_t size) {
+    if (size < 5 || size > 6) return ;
+    volatile double r_max, t_max, temp;
+    r_max = (double) ((1 << size) - 1);
+    t_max = 255.0;
+
+    temp = round(((double) src * r_max) / t_max);
+
+    src = temp;
+}
+
+// todo expand this
+/* always returns a 5-6-5 rgb into a uint16_t */
+void encode_rgb(uint8_t r, uint8_t g, uint8_t b, uint16_t &rgb) {
+    rgb = 0;
+    scale_rgb(r, 5U);
+    scale_rgb(g, 6U);
+    scale_rgb(b, 5U);
+    rgb |= r << 11;
+    rgb |= g << 5;
+    rgb |= b;
 }

@@ -18,7 +18,7 @@ extern "C" {
 
 // Default color definitions (can be changed via setColors)
 #define DEFAULT_BGCOLOR   0
-#define DEFAULT_MAINCOLOR ((1 << 12) | (1 << 7) | (1 << 2))
+#define DEFAULT_MAINCOLOR ((1 << 7) | (1 << 2))
 
 // Mood and position defines (same as original)
 #define DEFAULT   0
@@ -41,12 +41,24 @@ extern "C" {
 
 // adapter functions
 static uint64_t millis() {
-    return static_cast<uint64_t>(esp_timer_get_time() * 1000);
+    return static_cast<uint64_t>(esp_timer_get_time() / 1000);
 }
 
 // todo silently fails
 static uint32_t random(int max) {
     return (max <= 0) ? 0: esp_random() % max;
+}
+
+static inline int32_t approach(int32_t cur, int32_t target, int32_t divisor)
+{
+    if (divisor == 0) return cur; // avoid div by 0
+    int32_t d = target - cur;
+    if (d == 0) return cur; // no work to be done
+    int32_t step = d / divisor;
+    // if next step is too small
+    if (step == 0) 
+      step = (d > 0) ? 1 : -1;  // if distance is negative, move the other way
+    return cur + step;
 }
 
 class ESP_TFT_RoboEyes {
@@ -119,23 +131,23 @@ class ESP_TFT_RoboEyes {
     bool autoblinker;
     int blinkInterval;
     int blinkIntervalVariation;
-    unsigned long blinktimer;
+    uint64_t blinktimer;
     bool idle;
     int idleInterval;
     int idleIntervalVariation;
-    unsigned long idleAnimationTimer;
+    uint64_t idleAnimationTimer;
     bool confused;
-    unsigned long confusedAnimationTimer;
+    uint64_t confusedAnimationTimer;
     int confusedAnimationDuration;
     bool confusedToggle;
     bool laugh;
-    unsigned long laughAnimationTimer;
+    uint64_t laughAnimationTimer;
     int laughAnimationDuration;
     bool laughToggle;
 
     // --- New Blink State for AutoBlinker ---
     bool blinkingActive;             // indicates if a blink is in progress (closed state)
-    unsigned long blinkCloseDurationTimer; // timer for how long to stay closed
+    uint64_t blinkCloseDurationTimer; // timer for how long to stay closed
     int blinkCloseDuration = 150;    // blink closed duration in milliseconds
 
     // ---------------------------
@@ -512,13 +524,14 @@ class ESP_TFT_RoboEyes {
       spaceBetweenCurrent = (spaceBetweenCurrent + spaceBetweenNext) / 2;
 
       // Smooth coordinate transitions
-      eyeLx = (eyeLx + eyeLxNext) / 2;
-      eyeLy = (eyeLy + eyeLyNext) / 2;
+      eyeLx = approach(eyeLx, eyeLxNext, 8);
+      eyeLy = approach(eyeLy, eyeLyNext, 8);
+
       // Right eye position depends on left eye pos + space + eye width
       eyeRxNext = eyeLxNext + eyeLwidthCurrent + spaceBetweenCurrent;
       eyeRyNext = eyeLyNext;
-      eyeRx = (eyeRx + eyeRxNext) / 2;
-      eyeRy = (eyeRy + eyeRyNext) / 2;
+      eyeRx = approach(eyeRx, eyeRxNext, 8);
+      eyeRy = approach(eyeRy, eyeRyNext, 8);
 
       // Smooth border radius transitions
       eyeLborderRadiusCurrent = (eyeLborderRadiusCurrent + eyeLborderRadiusNext) / 2;
@@ -666,5 +679,7 @@ class ESP_TFT_RoboEyes {
     } // end drawEyes
 
 }; // end class TFT_RoboEyes
+
+
 
 #endif  // ESP_TFT_ROBOEYES_H

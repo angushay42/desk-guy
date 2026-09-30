@@ -15,6 +15,7 @@ extern "C" {
 }
 #include <stddef.h>
 #include <stdlib.h>
+#include <math.h>
 
 // note: D = MOSI, Q = MISO
 #define MOSI    GPIO_NUM_13
@@ -25,7 +26,7 @@ extern "C" {
 #define RST     GPIO_NUM_5
 
 #define LCD_HOST SPI2_HOST  // should be the fast SPI
-#define DOT_CLK_HZ 18 * 1000 * 1000  // I think it is 18MHz, unsure... 
+#define DOT_CLK_HZ 40 * 1000 * 1000  // I think it is 18MHz, unsure... 
 #define LCD_CMD_BITS 8
 #define LCD_PARAM_BITS 8
 
@@ -54,6 +55,7 @@ private:
     esp_lcd_panel_handle_t m_panel_handle;
     esp_lcd_panel_dev_config_t m_panel_cfg;
 
+    SemaphoreHandle_t m_done_sem;
     uint16_t *m_fb;
     size_t m_screen_width;
     size_t m_screen_height;
@@ -66,6 +68,8 @@ class Sprite {
 public: 
     Sprite(Display *disp);
     ~Sprite() { deleteSprite(); };
+
+    bool isCreated() {return m_created;}
 
     void setColorDepth(uint8_t);
     void drawPixel(int32_t x, int32_t y, uint32_t color);
@@ -82,6 +86,7 @@ public:
     void fillTriangle(int32_t x1,int32_t y1, int32_t x2,int32_t y2, int32_t x3,int32_t y3, uint32_t color);
    
 private:    
+    
     void fillRectCorner(int32_t x0, int32_t y0, int32_t r, uint8_t cornername, int32_t delta, uint32_t color);
 
     Display *m_disp;
@@ -103,6 +108,9 @@ protected:
     int32_t  _bitwidth;         // Sprite image bit width for drawPixel (for <8bpp Sprites, not swapped)
 };
 
-// helper func
+// helper funcs
+
+void encode_rgb(uint8_t r, uint8_t g, uint8_t b, uint16_t &rgb);
+void scale_rgb(uint8_t &src, size_t size);
 template <typename T> static inline void
 transpose(T& a, T& b) { T t = a; a = b; b = t; }

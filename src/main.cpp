@@ -10,6 +10,8 @@ extern "C" {
 #include "esp_lcd_panel_st7789.h"
 #include "esp_lcd_panel_ops.h"
 
+#include "esp_heap_caps.h"
+
 #include "esp_freertos_hooks.h"
 #include "esp_log.h"
 #include <math.h>
@@ -21,17 +23,15 @@ extern "C" {
 static const char *TAG = "main";
 
 bool test_idle_hook_cb(void) {
-    ESP_LOGI(TAG, "Idle task called");
+    // ESP_LOGI(TAG, "Idle task called");
     return true;
 }
 
-extern "C" void app_main(void) 
+void eyes_main(void) 
 {
-    esp_register_freertos_idle_hook_for_cpu(test_idle_hook_cb, 0);
-
     ESP_LOGD(TAG, "Creating display...");
 
-    static auto disp = Display(240, 340, 16);
+    static auto disp = Display(240, 320, 16);
     ESP_LOGD(TAG, "Creating RoboEyes...");
 
     static auto eyes = ESP_TFT_RoboEyes(disp, true, 0);  // portrait, rotations?
@@ -47,11 +47,51 @@ extern "C" void app_main(void)
     eyes.setBorderradius(10,10);
     eyes.setSpacebetween(36);
 
+
     for (;;) 
     {
         ESP_LOGD(TAG, "Loop...");
 
         eyes.update();
         taskYIELD();
+    }   
+}
+
+void test_main(void)
+{
+    ESP_LOGD(TAG, "Starting test...");
+    
+    static auto disp = Display(240, 320, 16);
+
+    disp.init();
+
+    static auto sprite = Sprite(&disp);
+    sprite.createSprite(240, 320);
+
+    uint16_t red;
+    encode_rgb(255, 0, 0, red);
+
+    sprite.fillSprite(0);   // black
+    // sprite.fillRect(100, 140, 20, 20, red); 
+
+    // sprite.fillRoundRect(0, 0, 100, 20, 5, red);
+
+    sprite.fillTriangle(40, 120 , 200, 120, 60, 20, red);
+    
+
+    sprite.pushSprite(0,0);
+    for (;;) 
+    {
+        ESP_LOGD(TAG, "Created is: %s", (sprite.isCreated()) ? "true": "false");
+        vTaskDelay(100);
     }
+}
+
+extern "C" void app_main(void) 
+{
+    esp_register_freertos_idle_hook_for_cpu(test_idle_hook_cb, 0);
+
+    eyes_main();
+    // test_main();
+    
 }
