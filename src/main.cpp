@@ -38,7 +38,7 @@ extern "C" void app_main(void)
 
     disp.init();
     ESP_LOGD(TAG, "RoboEyes.begin()");
-    eyes.begin(100);    // 50fps?
+    eyes.begin(50);    // 50fps?
 
     eyes.setAutoblinker(true, 2, 1);
     eyes.setIdleMode(true, 4, 0);

@@ -102,3 +102,7 @@ protected:
     int32_t  _dwidth, _dheight; // Real sprite width and height (for <8bpp Sprites)
     int32_t  _bitwidth;         // Sprite image bit width for drawPixel (for <8bpp Sprites, not swapped)
 };
+
+// helper func
+template <typename T> static inline void
+transpose(T& a, T& b) { T t = a; a = b; b = t; }
