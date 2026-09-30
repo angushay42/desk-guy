@@ -45,13 +45,9 @@ public:
 
     void init();
     
-    void setRotation(int rotations);
-    void fillScreen(uint16_t color = 0);
-    void sendScreen();
+    void setRotation(uint8_t rotation);
+    void pushImage(size_t x,size_t y,size_t w,size_t h,const uint16_t *data);
 private:
-    void *createFrameBuffer();
-
-
     spi_bus_config_t m_spi_bus_config;
     esp_lcd_panel_io_handle_t m_io_handle;
     esp_lcd_panel_io_spi_config_t m_io_cfg;
@@ -62,45 +58,45 @@ private:
     size_t m_screen_width;
     size_t m_screen_height;
     size_t m_bpp;
+    uint8_t m_rotation; // 0-3, clockwise from north
 };
 
 /// @brief Adapted from TFT_eSPI by Bodmer
 class Sprite {
 public: 
     Sprite(Display *disp);
+    ~Sprite() { deleteSprite(); };
+
     void setColorDepth(uint8_t);
     void drawPixel(int32_t x, int32_t y, uint32_t color);
-    void *createSprite(size_t w, size_t h);
+    void createSprite(size_t w, size_t h);
     void deleteSprite();
     void fillSprite(uint16_t color);
     void pushSprite(uint32_t x, uint32_t y);
+
+    void drawFastHLine(int32_t x, int32_t y, int32_t w, uint32_t color);
+
     void fillRect(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t color);
-    void fillRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t radius, uint32_t color);
+    void fillRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, uint32_t color);
     //                |      corner 1      |       corner 2      |        corner 3      |
     void fillTriangle(int32_t x1,int32_t y1, int32_t x2,int32_t y2, int32_t x3,int32_t y3, uint32_t color);
+   
 private:    
-    Display *_disp;
+    void fillRectCorner(int32_t x0, int32_t y0, int32_t r, uint8_t cornername, int32_t delta, uint32_t color);
+
+    Display *m_disp;
 protected:
+    /* TFT_eSprite is more complex as it supports multiple bpp formats */
 
-    uint8_t  _bpp;     // bits per pixel (1, 4, 8 or 16)
-    uint16_t *_img;    // pointer to 16-bit sprite
-    uint8_t  *_img8;   // pointer to  1 and 8-bit sprite frame 1 or frame 2
-    uint8_t  *_img4;   // pointer to  4-bit sprite (uses color map)
-    uint8_t  *_img8_1; // pointer to frame 1
-    uint8_t  *_img8_2; // pointer to frame 2
+    uint8_t  m_bpp;     // bits per pixel (1, 4, 8 or 16)
+    uint16_t *m_img;    // pointer to 16-bit sprite
 
-    uint16_t *_colorMap; // color map pointer: 16 entries, used with 4-bit color map.
+    int32_t  m_sinra;   // Sine of rotation angle in fixed point
+    int32_t  m_cosra;   // Cosine of rotation angle in fixed point
 
-    int32_t  _sinra;   // Sine of rotation angle in fixed point
-    int32_t  _cosra;   // Cosine of rotation angle in fixed point
+    bool     m_created; // A Sprite has been created and memory reserved
+    bool     m_gFont = false; 
 
-    bool     _created; // A Sprite has been created and memory reserved
-    bool     _gFont = false; 
-
-    int32_t  _xs, _ys, _xe, _ye, _xptr, _yptr; // for setWindow
-    int32_t  _sx, _sy; // x,y for scroll zone
-    uint32_t _sw, _sh; // w,h for scroll zone
-    uint32_t _scolor;  // gap fill colour for scroll zone
 
     int32_t  _iwidth, _iheight; // Sprite memory image bit width and height (swapped during rotations)
     int32_t  _dwidth, _dheight; // Real sprite width and height (for <8bpp Sprites)

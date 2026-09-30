@@ -28,10 +28,16 @@ bool test_idle_hook_cb(void) {
 extern "C" void app_main(void) 
 {
     esp_register_freertos_idle_hook_for_cpu(test_idle_hook_cb, 0);
+
+    ESP_LOGD(TAG, "Creating display...");
+
     static auto disp = Display(240, 340, 16);
+    ESP_LOGD(TAG, "Creating RoboEyes...");
+
     static auto eyes = ESP_TFT_RoboEyes(disp, true, 0);  // portrait, rotations?
 
     disp.init();
+    ESP_LOGD(TAG, "RoboEyes.begin()");
     eyes.begin(100);    // 50fps?
 
     eyes.setAutoblinker(true, 2, 1);
@@ -43,6 +49,9 @@ extern "C" void app_main(void)
 
     for (;;) 
     {
+        ESP_LOGD(TAG, "Loop...");
+
         eyes.update();
+        taskYIELD();
     }
 }

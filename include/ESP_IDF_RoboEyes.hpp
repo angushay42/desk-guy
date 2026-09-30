@@ -46,7 +46,7 @@ static uint64_t millis() {
 
 // todo silently fails
 static uint32_t random(int max) {
-    return (max < 0) ? 0: esp_random() % max;
+    return (max <= 0) ? 0: esp_random() % max;
 }
 
 class ESP_TFT_RoboEyes {
@@ -58,8 +58,8 @@ class ESP_TFT_RoboEyes {
     Sprite *sprite;
 
     // Display configuration – you can update these via setScreenSize()
-    int screenWidth = 135;   // effective width (set by user)
-    int screenHeight = 240;  // effective height (set by user)
+    int screenWidth = 240;   // effective width (set by user)
+    int screenHeight = 320;  // effective height (set by user)
     uint16_t bgColor;        // background color for drawing overlays
     uint16_t mainColor;      // color for the eyes
 
