@@ -1,2 +1,5 @@
 CompileFlags: 
+  Add:
+    - '-I/Users/angushay/Documents/third-party/PlatformIO/Projects/desk-guy/include'
+
   Remove:   [-mlongcalls, -fno-shrink-wrap, -fno-tree-switch-conversion, -fstrict-volatile-bitfields]

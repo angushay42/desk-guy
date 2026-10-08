@@ -1,9 +1,10 @@
 {
-    "C_Cpp.intelliSenseEngine": "default",
-    "clangd.enable": false,
+    "C_Cpp.intelliSenseEngine": "disabled",
+    "clangd.enable": true,
     "clangd.arguments": [
         "--compile-commands-dir=.pio/build/main/",
-        "--query-driver=/Users/angushay/.platformio/packages/toolchain-xtensa-esp-elf/bin/xtensa-esp32s3-elf-gcc"
+        "--query-driver=/Users/angushay/.platformio/packages/toolchain-xtensa-esp-elf/bin/xtensa-esp32s3-elf-gcc",
+        "-header-insertion=never"
     ],
     
 }
