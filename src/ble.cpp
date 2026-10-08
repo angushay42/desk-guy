@@ -42,14 +42,24 @@ int BLE::init()
 
     ble_hs_cfg.sm_io_cap = 3;   // https://github.com/espressif/esp-idf/blob/v6.1/examples/bluetooth/nimble/bleprph/tutorial/bleprph_walkthrough.md#security-manager-configuration:~:text=for%20example%20configurations.-,I/O%20CAPABILITIES,-ble_hs_cfg.sm_io_cap
 
-    rc = GATT_init();
+    rc = m_gatt_server.init();
     assert(rc == 0);
 
     return rc;
 }
 
+GATT::GATT() : 
+    m_gatt_service_uuid{createUUID128("DB9ABCB8-B437-4910-9769-FBF8FE13B755")},
+    m_gatt_chr1_uuid{createUUID128("EE41BE19-6DEB-460A-B9A0-07599E7F0EC9")},
+    m_gatt_dsc_uuid{createUUID128("203705A8-9455-471B-9DC1-F7D13FDA0B65")}
+{ }
+
+GATT::~GATT() 
+{ }
+
 int GATT::init(void)
 {
+
     ble_svc_gap_init();
     ble_svc_gatt_init();
 

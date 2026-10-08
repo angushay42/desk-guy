@@ -19,12 +19,53 @@ extern "C" {
 #include "assert.h"
 }
 
-// forward declare
-class BLE;
-class GATT;
-
-
 // chr = characteristic
+
+static constexpr uint8_t to_hex(const char c)
+{
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'a') return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    return 0;
+}
+
+class GATT {
+public:
+    GATT();
+    ~GATT();
+
+    int init();
+
+    const ble_uuid128_t m_gatt_service_uuid;
+    const ble_uuid128_t m_gatt_chr1_uuid;
+    const ble_uuid128_t m_gatt_dsc_uuid;
+
+    uint8_t m_gatt_chr_val;
+    uint16_t m_gatt_svr_chr_val_handle;
+    
+
+    struct ble_gatt_svc_def m_gatt_services[];
+
+private:
+    constexpr ble_uuid128_t createUUID128(const char *uuid_abnf) 
+    {
+        ble_uuid128_t ret = {};
+        ret.u.type = BLE_UUID_TYPE_128;
+
+        size_t count = 0, i = 36;
+        // string is 32 hex + 4 hyphen + nul, 37
+        while (i-- > 0)
+        {
+            const char c = uuid_abnf[i];
+            if (c == '-') continue;
+            const uint8_t dig = to_hex(c);
+            ret.value[count / 2] |= static_cast<uint8_t>((count % 2 == 0) ? dig : (dig << 4));
+            count++;    // character found
+        }
+        return ret;
+    }
+};
+
 
 class BLE {
 public:
@@ -38,30 +79,4 @@ private:
 };
 
 
-class GATT {
-public:
-    GATT();
-    ~GATT();
 
-    int init();
-
-    const ble_uuid128_t m_gatt_service_uuid;
-    uint8_t m_gatt_chr_val;
-    uint16_t m_gatt_svr_chr_val_handle;
-    
-
-    struct ble_gatt_svc_def m_gatt_services[];
-
-private:
-    void createUUID128(uint64_t first, uint64_t second, ble_uuid128_t &dest) 
-    {
-        uint64_t *temp;
-
-        for (size_t i = 0; i < 16; i++)
-        {
-            temp = &((i > 7) ? first : second);
-            dest.value[i] = *temp & ((1U << 8) - 1);
-            *temp <<= 8;
-        }
-    }
-};
